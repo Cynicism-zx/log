@@ -7,5 +7,7 @@ import (
 
 func TestInit(t *testing.T) {
 	InitLogger()
-	Warn(context.Background(), "test", "pass")
+	ctx := context.WithValue(context.Background(), "sp", "2222")
+	ctx = SetContext(ctx, "trace_id", "1234567890")
+	Warn(ctx, "test", "pass")
 }
