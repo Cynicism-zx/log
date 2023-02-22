@@ -1,0 +1,5 @@
+*.docx
+.idea/
+bin/
+*local.yaml
+*.log
