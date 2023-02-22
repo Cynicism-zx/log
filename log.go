@@ -13,8 +13,7 @@ import (
 var logger *zapLog
 
 type zapLog struct {
-	log    *zap.Logger
-	prefix []interface{}
+	log *zap.Logger
 }
 
 type LogConfig struct {
@@ -31,7 +30,7 @@ type Option func(option *LogConfig)
 func InitLogger(options ...Option) *zap.Logger {
 	cnf := &LogConfig{
 		Level:        "info",
-		Path:         "./logs/log_out.zapLog",
+		Path:         "./logs/log_out.log",
 		MaxAge:       7,
 		rotationTime: 1,
 		Prod:         false,

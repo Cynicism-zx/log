@@ -40,7 +40,7 @@ func getFields(ctx context.Context, kvs ...interface{}) []zap.Field {
 
 	var (
 		traceId, spanId string
-		fields          = make([]zap.Field, 0, len(kvs)+len(logger.prefix))
+		fields          = make([]zap.Field, 0, len(kvs))
 		//newKvs          []interface{}
 	)
 	if span := trace.SpanContextFromContext(ctx); span.HasTraceID() {
