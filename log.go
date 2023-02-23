@@ -13,7 +13,8 @@ import (
 var logger *zapLog
 
 type zapLog struct {
-	log *zap.Logger
+	log    *zap.Logger
+	prefix []interface{}
 }
 
 type LogConfig struct {

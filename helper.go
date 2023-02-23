@@ -14,11 +14,9 @@ import (
 )
 
 // SetContext sets the context field to the log-out.
-func SetContext(ctx context.Context, kvs ...interface{}) context.Context {
-	for i := 0; i < len(kvs); i += 2 {
-		ctx = context.WithValue(ctx, kvs[i], kvs[i+1])
-	}
-	return ctx
+// if ctx miss the key, then use the value in kvs.
+func SetContext(ctx context.Context, kvs ...interface{}) {
+	logger.prefix = append(logger.prefix, kvs...)
 }
 
 // Info logs a message at info level.
@@ -38,11 +36,29 @@ func getFields(ctx context.Context, kvs ...interface{}) []zap.Field {
 		return nil
 	}
 
-	var (
-		traceId, spanId string
-		fields          = make([]zap.Field, 0, len(kvs))
-		//newKvs          []interface{}
-	)
+	fields := make([]zap.Field, 0, len(kvs)+len(logger.prefix))
+	fields = append(fields, zap.Any("caller", caller(3)))
+	fields = getTraceAndSpan(ctx, fields)
+
+	for i := 0; i < len(kvs); i += 2 {
+		fields = append(fields, zap.Any(fmt.Sprint(kvs[i]), kvs[i+1]))
+	}
+
+	for j := 0; j < len(logger.prefix); j += 2 {
+		k := logger.prefix[j]
+		v := ctx.Value(k)
+		if v != nil {
+			fields = append(fields, zap.Any(fmt.Sprint(logger.prefix[j]), v))
+			continue
+		}
+		fields = append(fields, zap.Any(fmt.Sprint(logger.prefix[j]), logger.prefix[j+1]))
+	}
+
+	return fields
+}
+
+func getTraceAndSpan(ctx context.Context, fields []zap.Field) []zap.Field {
+	var traceId, spanId string
 	if span := trace.SpanContextFromContext(ctx); span.HasTraceID() {
 		traceId = span.TraceID().String()
 	}
@@ -51,27 +67,8 @@ func getFields(ctx context.Context, kvs ...interface{}) []zap.Field {
 		spanId = span.SpanID().String()
 	}
 
-	fields = contextInternals(ctx)
-
 	fields = append(fields, zap.String("trace_id", traceId))
 	fields = append(fields, zap.String("span_id", spanId))
-	fields = append(fields, zap.Any("caller", caller(3)))
-	for i := 0; i < len(kvs); i += 2 {
-		//for j := 0; j < len(logger.prefix); j += 2 {
-		//	v := ctx.Value(logger.prefix[j])
-		//	if !IsNil(v) {
-		//		newKvs = append(newKvs, logger.prefix[j], v)
-		//		continue
-		//	}
-		//	newKvs = append(newKvs, logger.prefix[j], logger.prefix[j+1])
-		//}
-		fields = append(fields, zap.Any(fmt.Sprint(kvs[i]), fmt.Sprint(kvs[i+1])))
-	}
-
-	//for i := 0; i < len(newKvs); i += 2 {
-	//	fields = append(fields, zap.Any(fmt.Sprint(newKvs[i]), fmt.Sprint(newKvs[i+1])))
-	//}
-
 	return fields
 }
 
@@ -85,14 +82,7 @@ func caller(depth int) interface{} {
 	return file[idx+1:] + ":" + strconv.Itoa(line)
 }
 
-func IsNil(i interface{}) bool {
-	vi := reflect.ValueOf(i)
-	if vi.Kind() == reflect.Ptr {
-		return vi.IsNil()
-	}
-	return false
-}
-
+// contextInternals returns the context kvs.
 func contextInternals(ctx context.Context) []zap.Field {
 	contextValues := reflect.ValueOf(ctx).Elem()
 	contextKeys := reflect.TypeOf(ctx).Elem()
