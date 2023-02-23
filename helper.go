@@ -16,6 +16,10 @@ import (
 // SetContext sets the context field to the log-out.
 // if ctx miss the key, then use the value in kvs.
 func SetContext(ctx context.Context, kvs ...interface{}) {
+	if len(kvs) == 0 || len(kvs)%2 != 0 {
+		logger.log.Warn(fmt.Sprint("Keyvalues must appear in pairs: ", kvs))
+		return
+	}
 	logger.prefix = append(logger.prefix, kvs...)
 }
 
@@ -40,18 +44,17 @@ func getFields(ctx context.Context, kvs ...interface{}) []zap.Field {
 	fields = append(fields, zap.Any("caller", caller(3)))
 	fields = getTraceAndSpan(ctx, fields)
 
-	for i := 0; i < len(kvs); i += 2 {
-		fields = append(fields, zap.Any(fmt.Sprint(kvs[i]), kvs[i+1]))
-	}
-
 	for j := 0; j < len(logger.prefix); j += 2 {
-		k := logger.prefix[j]
-		v := ctx.Value(k)
+		v := ctx.Value(logger.prefix[j])
 		if v != nil {
 			fields = append(fields, zap.Any(fmt.Sprint(logger.prefix[j]), v))
 			continue
 		}
 		fields = append(fields, zap.Any(fmt.Sprint(logger.prefix[j]), logger.prefix[j+1]))
+	}
+
+	for i := 0; i < len(kvs); i += 2 {
+		fields = append(fields, zap.Any(fmt.Sprint(kvs[i]), kvs[i+1]))
 	}
 
 	return fields
@@ -67,8 +70,7 @@ func getTraceAndSpan(ctx context.Context, fields []zap.Field) []zap.Field {
 		spanId = span.SpanID().String()
 	}
 
-	fields = append(fields, zap.String("trace_id", traceId))
-	fields = append(fields, zap.String("span_id", spanId))
+	fields = append(fields, zap.String("trace_id", traceId), zap.String("span_id", spanId))
 	return fields
 }
 
